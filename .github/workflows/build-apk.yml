@@ -29,6 +29,12 @@ jobs:
       - name: Add Android platform
         run: npx cap add android
 
+      - name: Install native compass plugin
+        run: |
+          D=android/app/src/main/java/com/digitalcompass/app
+          mkdir -p $D
+          cp native/CompassPlugin.java native/MainActivity.java $D/
+
       - name: Patch manifest (permissions + portrait)
         run: |
           M=android/app/src/main/AndroidManifest.xml
