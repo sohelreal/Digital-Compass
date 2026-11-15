@@ -22,3 +22,10 @@ Features: live digital compass, Qibla direction (with haptic "aligned" buzz), GP
 
 Note: Compass accuracy depends on your phone's magnetometer. Calibrate by moving it in a figure 8.
 Map tiles need internet. For Play Store release, build a signed release AAB in Android Studio.
+
+## Compass accuracy notes (v2)
+- `native/CompassPlugin.java` is copied into the Android project by the workflow. It uses Android's fused
+  ROTATION_VECTOR sensor (~50 Hz), works flat, tilted or upright, and reports heading accuracy.
+- True north: magnetic declination is computed on-device (Android `GeomagneticField`) from your GPS fix.
+  Toggle "North: True/Magnetic" on the Compass tab. Qibla always uses the true bearing.
+- Warnings appear for magnetic interference (field outside 20-70 uT) and poor calibration.

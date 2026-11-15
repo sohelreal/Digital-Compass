@@ -30,3 +30,7 @@ nav button{flex:1;background:none;border:0;color:var(--muted);padding:8px 0;font
 nav button i{display:block;font-style:normal;font-size:22px}
 nav button.active{color:var(--accent)}
 svg text{font-family:system-ui,sans-serif}
+
+.sensor-info{font-size:13px;color:var(--muted);min-height:20px;margin:2px 0 8px}
+.sensor-info.good{color:var(--ok)}
+.sensor-info.warn{color:#f59e0b}

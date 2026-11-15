@@ -41,46 +41,97 @@
   }
 
   // ---------- Compass sensor ----------
-  let sensorOn = false;
-  function onOrientation(e) {
-    let h = null;
-    if (typeof e.webkitCompassHeading === "number") h = e.webkitCompassHeading;      // iOS
-    else if (e.alpha != null && (e.absolute || e.type === "deviceorientationabsolute")) h = norm(360 - e.alpha);
-    if (h == null) return;
-    heading = h;
+  // Native (Android app): fused ROTATION_VECTOR ~50 Hz + true-north correction (CompassPlugin.java)
+  // Browser fallback: deviceorientationabsolute with full tilt compensation.
+  const Cap = window.Capacitor;
+  const isNative = !!(Cap && Cap.isNativePlatform && Cap.isNativePlatform());
+  let NativeCompass = null, sensorOn = false;
+  let useTrue = true, hasDecl = false, declination = 0, accDeg = -1, fieldUt = 0, calib = 3;
+  let magHeading = null;   // latest magnetic-north heading
+
+  // Heading of the horizontal projection of device-top + device-back axes (flat, tilted or upright)
+  function tiltHeading(alpha, beta, gamma) {
+    const a = rad(alpha || 0), b = rad(beta || 0), g = rad(gamma || 0);
+    const ca = Math.cos(a), sa = Math.sin(a), cb = Math.cos(b), sb = Math.sin(b), cg = Math.cos(g), sg = Math.sin(g);
+    const R12 = -sa * cb, R22 = ca * cb;
+    const R13 = ca * sg + sa * sb * cg, R23 = sa * sg - ca * sb * cg;
+    return norm(deg(Math.atan2(R12 - R13, R22 - R23)));
+  }
+  function onWebOrientation(e) {
+    if (typeof e.webkitCompassHeading === "number") magHeading = e.webkitCompassHeading;   // iOS (already tilt-compensated)
+    else if (e.alpha != null && (e.absolute || e.type === "deviceorientationabsolute")) magHeading = tiltHeading(e.alpha, e.beta, e.gamma);
+    else return;
+    heading = norm(magHeading + (useTrue && hasDecl ? declination : 0));
+  }
+  function onNative(d) {
+    magHeading = d.magnetic;
+    declination = d.declination; hasDecl = !!d.hasDeclination;
+    accDeg = d.accuracy; fieldUt = d.field; calib = d.calibration;
+    heading = norm(d.magnetic + (useTrue && hasDecl ? declination : 0));
   }
   async function enableSensors() {
+    if (sensorOn) return;
+    if (isNative) {
+      try {
+        NativeCompass = Cap.registerPlugin("Compass");
+        await NativeCompass.addListener("heading", onNative);
+        await NativeCompass.start();
+        sensorOn = true;
+        $("enable-sensors").style.display = "none";
+        return;
+      } catch (err) { NativeCompass = null; }
+    }
     try {
       if (typeof DeviceOrientationEvent !== "undefined" && typeof DeviceOrientationEvent.requestPermission === "function") {
         const r = await DeviceOrientationEvent.requestPermission();
         if (r !== "granted") { setStatus("Sensor permission denied"); return; }
       }
-      if (!sensorOn) {
-        window.addEventListener("deviceorientationabsolute", onOrientation, true);
-        window.addEventListener("deviceorientation", (e) => {
-          if (typeof e.webkitCompassHeading === "number") onOrientation(e);
-        }, true);
-        sensorOn = true;
-      }
+      window.addEventListener("deviceorientationabsolute", onWebOrientation, true);
+      window.addEventListener("deviceorientation", (e) => { if (typeof e.webkitCompassHeading === "number") onWebOrientation(e); }, true);
+      sensorOn = true;
       $("enable-sensors").style.display = "none";
     } catch (err) { setStatus("Sensor error"); }
   }
   $("enable-sensors").addEventListener("click", enableSensors);
+  $("btn-ref").addEventListener("click", () => {
+    useTrue = !useTrue;
+    $("btn-ref").textContent = "North: " + (useTrue ? "True" : "Magnetic");
+    if (magHeading != null) heading = norm(magHeading + (useTrue && hasDecl ? declination : 0));
+  });
 
-  // Smooth + render loop
+  function updateInfo() {
+    let txt = "", cls = "";
+    if (heading == null) { txt = "Waiting for compass sensor…"; }
+    else {
+      const ref = useTrue
+        ? (hasDecl ? `True N (decl ${declination >= 0 ? "+" : ""}${declination.toFixed(1)}°)` : "Magnetic N (waiting for GPS → true N)")
+        : "Magnetic N";
+      const acc = accDeg >= 0 ? ` · ±${Math.round(accDeg)}°` : "";
+      const fld = fieldUt > 0 ? ` · ${Math.round(fieldUt)} µT` : "";
+      if (fieldUt > 0 && (fieldUt < 20 || fieldUt > 70)) { txt = `⚠ Magnetic interference${fld}. Move away from metal, magnets, cases.`; cls = "warn"; }
+      else if (isNative && (calib <= 1 || accDeg > 15)) { txt = "⚠ Calibrate: move phone in a figure 8"; cls = "warn"; }
+      else { txt = `✓ ${ref}${acc}${fld}`; cls = "good"; }
+    }
+    document.querySelectorAll(".sensor-info").forEach((el) => { el.textContent = txt; el.className = "sensor-info " + cls; });
+  }
+  setInterval(updateInfo, 500);
+
+  // Fast adaptive smoothing + render loop
   let wasAligned = false;
   function frame() {
     if (heading != null) {
       if (shown == null) shown = heading;
       const d = ((heading - shown + 540) % 360) - 180;
-      shown = norm(shown + d * 0.2);
+      if (Math.abs(d) > 0.25) shown = norm(shown + d * Math.min(0.7, 0.18 + Math.abs(d) / 40));
       $("dial-compass-g").setAttribute("transform", `rotate(${-shown})`);
       $("dial-qibla-g").setAttribute("transform", `rotate(${-shown})`);
       $("heading-text").textContent = `${Math.round(shown) % 360}°`;
       $("dir-text").textContent = DIRS[Math.round(shown / 45) % 8];
       if (qibla != null) {
-        $("kaaba-mark").setAttribute("transform", `rotate(${qibla})`);
-        const diff = Math.abs(((qibla - shown + 540) % 360) - 180);
+        // Qibla is a true bearing; if the dial is in magnetic north, shift it by the declination
+        const k = qibla - (useTrue && hasDecl ? 0 : (hasDecl ? declination : 0));
+        $("kaaba-mark").setAttribute("transform", `rotate(${k})`);
+        const diff = Math.abs(((k - shown + 540) % 360) - 180);
         const aligned = diff < 3;
         $("tab-qibla").classList.toggle("aligned", aligned);
         if (aligned && !wasAligned && navigator.vibrate) navigator.vibrate(60);
@@ -120,8 +171,13 @@
     $("g-hdg").textContent = c.heading != null && !isNaN(c.heading) ? `${c.heading.toFixed(0)}°` : "n/a";
     $("g-dist").textContent = `${Math.round(dist).toLocaleString()} km`;
     $("g-time").textContent = new Date(p.timestamp).toLocaleTimeString();
+    if (NativeCompass && (!lastDeclPos || distanceKm(lastDeclPos[0], lastDeclPos[1], c.latitude, c.longitude) > 25)) {
+      lastDeclPos = [c.latitude, c.longitude];
+      NativeCompass.setLocation({ lat: c.latitude, lon: c.longitude, alt: c.altitude || 0 }).catch(() => { lastDeclPos = null; });
+    }
     updateMap();
   }
+  let lastDeclPos = null;
 
   // ---------- Map ----------
   let map, me, line, mapReady = false;
