@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<meta name="theme-color" content="#0b1220">
+<title>Digital Compass</title>
+<link rel="stylesheet" href="lib/leaflet.css">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header>
+  <h1>Digital Compass</h1>
+  <span id="status" class="status">Starting…</span>
+</header>
+
+<main>
+  <section id="tab-compass" class="tab active">
+    <div class="dial-wrap">
+      <div class="pointer"></div>
+      <svg id="dial-compass" viewBox="-110 -110 220 220"></svg>
+    </div>
+    <div class="big" id="heading-text">--°</div>
+    <div class="sub" id="dir-text">Move your phone in a figure 8 to calibrate</div>
+    <button id="enable-sensors" class="btn">Enable compass sensor</button>
+  </section>
+
+  <section id="tab-qibla" class="tab">
+    <div class="dial-wrap" id="qibla-wrap">
+      <div class="pointer"></div>
+      <svg id="dial-qibla" viewBox="-110 -110 220 220"></svg>
+    </div>
+    <div class="big" id="qibla-text">Qibla --°</div>
+    <div class="sub" id="qibla-sub">Waiting for location…</div>
+    <div class="hint">Turn until the Kaaba icon points to the top marker.<br>Keep the phone flat and away from metal/magnets.</div>
+  </section>
+
+  <section id="tab-map" class="tab">
+    <div id="map"></div>
+    <div class="maprow">
+      <button id="btn-center" class="btn small">My location</button>
+      <button id="btn-kaaba" class="btn small">Show Kaaba</button>
+    </div>
+  </section>
+
+  <section id="tab-gps" class="tab">
+    <div class="card">
+      <div class="row"><span>Latitude</span><b id="g-lat">--</b></div>
+      <div class="row"><span>Longitude</span><b id="g-lon">--</b></div>
+      <div class="row"><span>Altitude</span><b id="g-alt">--</b></div>
+      <div class="row"><span>Accuracy</span><b id="g-acc">--</b></div>
+      <div class="row"><span>Speed</span><b id="g-spd">--</b></div>
+      <div class="row"><span>Course (GPS)</span><b id="g-hdg">--</b></div>
+      <div class="row"><span>Distance to Kaaba</span><b id="g-dist">--</b></div>
+      <div class="row"><span>Last update</span><b id="g-time">--</b></div>
+    </div>
+    <button id="btn-copy" class="btn">Copy coordinates</button>
+    <button id="btn-gmaps" class="btn ghost">Open in maps</button>
+  </section>
+</main>
+
+<nav>
+  <button data-tab="compass" class="active"><i>🧭</i>Compass</button>
+  <button data-tab="qibla"><i>🕋</i>Qibla</button>
+  <button data-tab="map"><i>🗺️</i>Map</button>
+  <button data-tab="gps"><i>📡</i>GPS</button>
+</nav>
+
+<script src="lib/leaflet.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
