@@ -1,31 +1,46 @@
-# Digital Compass: GPS, Map & Qibla
+# NoorAzan — Prayer Times, Azan, Qibla, Digital Compass, GPS & Map
 
-Features: live digital compass, Qibla direction (with haptic "aligned" buzz), GPS details
-(lat/lon/altitude/speed/accuracy), and an OpenStreetMap map with a line to the Kaaba.
+Combined app: NoorAzan + Digital Compass (GPS, Map & Qibla). A clean, lightweight, battery-efficient native Android application built in **Kotlin** using **Material Design 3**, **AlarmManager**, **Foreground Services**, and **Jetpack Navigation**.
 
-## Build the Android APK with GitHub (no Android Studio needed)
-1. Create a new repository on github.com.
-2. Upload the *contents* of this folder (including the hidden `.github` folder) to the repo's `main` branch.
-3. Open the **Actions** tab -> **Build Android APK** -> wait ~5-8 minutes (or click **Run workflow**).
-4. Open the finished run -> **Artifacts** -> download `DigitalCompass-debug-apk`, unzip, and install `app-debug.apk` on your phone
-   (allow "Install unknown apps").
+## Features
+- **Automatic GPS Prayer Time Calculation:** Computes Fajr, Sunrise, Dhuhr, Asr, Maghrib, and Isha locally offline using high-precision astronomical solar equations (`PrayTimeCalculator`)—zero third-party API dependency.
+- **Reliable Background Azan Playback:** Uses `AlarmManager.setAlarmClock()` paired with a `MediaPlayback` Foreground Service and wake-lock so the full Azan plays reliably even when the screen is locked or the app is swiped away.
+- **Custom MP3 Support (`assets/azan/`):** Plays `fajr.mp3` for Fajr and `azan.mp3` for Dhuhr, Asr, Maghrib, and Isha (with automatic fallback to the device's default alarm tone if MP3 files have not been added yet).
+- **Real-Time Qibla Compass with Magnetic Declination Correction:** Uses device accelerometer + magnetometer sensors (`SensorManager`) combined with Android's `GeomagneticField` to adjust magnetic north to true north for pinpoint Kaaba direction accuracy (`21.4225° N, 39.8262° E`).
+- **Fast tilt-compensated compass (new):** `CompassEngine` reads Android's fused rotation-vector sensor at ~50 Hz and
+  computes the heading from the full device orientation, so it is correct when the phone is flat, tilted or upright.
+  Falls back to accelerometer + magnetometer on devices without the fused sensor.
+- **Qibla + Compass modes (new):** the Qibla tab has a Qibla / Compass switch, a True / Magnetic north toggle,
+  heading accuracy, magnetic-field strength, interference and calibration warnings, and a vibration when you face the Qibla.
+- **Map & GPS tab (new):** live GPS (latitude, longitude, altitude, accuracy, speed, distance to Kaaba), an OpenStreetMap map
+  (osmdroid) with a great-circle line to the Kaaba, copy-coordinates and open-in-maps buttons. Map tiles need internet.
+- **Five-Tab Material 3 Interface:**
+  1. **Home:** Next prayer live countdown, current location, next Azan status, and quick preview/stop controls.
+  2. **Prayer Times:** Full daily schedule with active prayer highlighting and one-tap Azan mute/unmute toggles.
+  3. **Qibla:** Qibla finder and digital compass (see above).
+  4. **Map:** GPS details and map (see above).
+  5. **Settings:** Calculation method selector (MWL, ISNA, Umm al-Qura, Egyptian, Karachi, Tehran), Asr juristic school (Standard/Shafi'i vs. Hanafi), per-prayer minute offsets (`-60` to `+60` min), individual prayer Azan toggles, and battery optimization helper.
 
-## Run locally in a browser
-    npm install
-    npm start        # http://localhost:8080 (compass sensor needs HTTPS or a phone)
+---
 
-## Customize
-- App name/ID: `capacitor.config.json`
-- UI/logic: `src/` (index.html, style.css, app.js)
-- App icon: after `npx cap add android`, replace `android/app/src/main/res/mipmap-*` icons
-  (or use `@capacitor/assets`).
+## Adding Your Two Azan MP3 Files
 
-Note: Compass accuracy depends on your phone's magnetometer. Calibrate by moving it in a figure 8.
-Map tiles need internet. For Play Store release, build a signed release AAB in Android Studio.
+1. Navigate to:
+   ```
+   app/src/main/assets/azan/
+   ```
+2. Place your two MP3 files inside that folder with these **exact lowercase filenames**:
+   - `fajr.mp3` — played at **Fajr** prayer time.
+   - `azan.mp3` — played at **Dhuhr, Asr, Maghrib, and Isha** prayer times.
 
-## Compass accuracy notes (v2)
-- `native/CompassPlugin.java` is copied into the Android project by the workflow. It uses Android's fused
-  ROTATION_VECTOR sensor (~50 Hz), works flat, tilted or upright, and reports heading accuracy.
-- True north: magnetic declination is computed on-device (Android `GeomagneticField`) from your GPS fix.
-  Toggle "North: True/Magnetic" on the Compass tab. Qibla always uses the true bearing.
-- Warnings appear for magnetic interference (field outside 20-70 uT) and poor calibration.
+
+---
+
+## Build the APK on GitHub
+1. Upload the contents of this folder (including the hidden `.github` folder) to a GitHub repository's `main` branch.
+2. Open **Actions -> Build Android APK**, wait for it to finish, then download the `NoorAzan-debug-apk` artifact.
+
+## Notes
+- Compass accuracy depends on the phone's magnetometer. Keep it away from metal and magnets; if you see the calibration
+  warning, move the phone in a figure-8.
+- To rename the app, edit `app_name` in `app/src/main/res/values/strings.xml` (and the title text in `fragment_home.xml`).
